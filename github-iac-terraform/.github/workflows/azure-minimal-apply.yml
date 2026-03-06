@@ -1,0 +1,35 @@
+name: azure-minimal-apply
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  apply:
+    runs-on: [self-hosted, ephemeral]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: infrastructure/azure-minimal
+        run: terraform init -backend-config=env/dev/backend.hcl
+
+      - name: Terraform Plan
+        working-directory: infrastructure/azure-minimal
+        run: terraform plan -var-file=env/dev/terraform.tfvars
+
+      - name: Terraform Apply
+        working-directory: infrastructure/azure-minimal
+        run: terraform apply -auto-approve -var-file=env/dev/terraform.tfvars
