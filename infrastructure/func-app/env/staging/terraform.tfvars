@@ -1,0 +1,7 @@
+location        = "centralus"
+env             = "staging"
+prefix          = "sk"
+os_type         = "Linux"
+sku_name        = "EP1"
+runtime         = "python"
+runtime_version = "3.11"

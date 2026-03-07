@@ -1,0 +1,7 @@
+location        = "centralus"
+env             = "prod"
+prefix          = "sk"
+os_type         = "Linux"
+sku_name        = "EP2"
+runtime         = "python"
+runtime_version = "3.11"

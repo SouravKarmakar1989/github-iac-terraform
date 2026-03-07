@@ -3,6 +3,16 @@ name: azure-minimal-apply
 on:
   workflow_dispatch:
     inputs:
+      module:
+        description: 'Infrastructure module to deploy'
+        required: true
+        type: choice
+        options:
+          - azure-minimal
+          - afd
+          - apim
+          - func-app
+          - vnet
       environment:
         description: 'Target environment (e.g. dev, staging, prod)'
         required: true
@@ -39,13 +49,13 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        working-directory: infrastructure/azure-minimal
+        working-directory: infrastructure/${{ inputs.module }}
         run: terraform init -backend-config=env/${{ inputs.environment }}/backend.hcl
 
       - name: Terraform Plan
-        working-directory: infrastructure/azure-minimal
+        working-directory: infrastructure/${{ inputs.module }}
         run: terraform plan -var-file=env/${{ inputs.environment }}/terraform.tfvars ${{ env.TF_TARGET }}
 
       - name: Terraform Apply
-        working-directory: infrastructure/azure-minimal
+        working-directory: infrastructure/${{ inputs.module }}
         run: terraform apply -auto-approve -var-file=env/${{ inputs.environment }}/terraform.tfvars ${{ env.TF_TARGET }}

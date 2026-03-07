@@ -24,10 +24,9 @@ resource "azurerm_storage_account" "sa" {
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
 
-  tags = {
-    env     = var.env
+  tags = merge(local.common_tags, {
     purpose = "azure-minimal-smoketest"
-  }
+  })
 }
 
 resource "azurerm_storage_container" "c" {

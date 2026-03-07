@@ -1,0 +1,7 @@
+location        = "centralus"
+env             = "dev"
+prefix          = "sk"
+os_type         = "Linux"
+sku_name        = "Y1"
+runtime         = "python"
+runtime_version = "3.11"

@@ -62,21 +62,32 @@
 .
 ├── .github/
 │   └── workflows/
-│       ├── azure-minimal-apply.yml     # Terraform init → plan → apply
-│       └── azure-minimal-destroy.yml  # Terraform init → destroy
+│       ├── azure-minimal-apply.yml     # Terraform init → plan → apply  (all modules)
+│       └── azure-minimal-destroy.yml  # Terraform init → destroy        (all modules)
 ├── infrastructure/
-│   └── azure-minimal/
-│       ├── main.tf                     # Resources: RG, Storage Account, Container
-│       ├── variables.tf                # Input variables
-│       ├── outputs.tf                  # Outputs: rg name, sa name, container name
-│       ├── providers.tf                # azurerm provider (OIDC, skip registration)
-│       ├── versions.tf                 # azurerm ~> 3.110, terraform >= 1.6.0
-│       └── env/
-│           └── dev/
-│               ├── backend.hcl         # Remote state config (Azure AD auth)
-│               └── terraform.tfvars    # Dev environment variable values
+│   ├── azure-minimal/                  # Smoke-test: RG + Storage Account + Container
+│   │   ├── main.tf
+│   │   ├── locals.tf                   # name_prefix, common_tags
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   ├── providers.tf
+│   │   ├── versions.tf
+│   │   └── env/
+│   │       ├── dev/      { backend.hcl, terraform.tfvars }
+│   │       ├── staging/  { backend.hcl, terraform.tfvars }
+│   │       └── prod/     { backend.hcl, terraform.tfvars }
+│   ├── afd/                            # Azure Front Door (CDN profile + endpoint + origin)
+│   │   └── ...same layout...
+│   ├── apim/                           # API Management
+│   │   └── ...same layout...
+│   ├── func-app/                       # Linux Function App (Consumption / Elastic Premium)
+│   │   └── ...same layout...
+│   └── vnet/                           # Virtual Network + subnets (for_each map)
+│       └── ...same layout...
 └── README.md
 ```
+
+> Each module is **self-contained**: it owns its own providers, versions, locals, variables, outputs, and per-environment backend/tfvars. Modules share no code — copy-paste-adapt pattern.
 
 ---
 
@@ -151,9 +162,92 @@ provider "azurerm" {
 
 `skip_provider_registration = true` prevents Terraform from attempting to register all Azure resource providers (requires elevated subscription permissions). All required providers must already be registered in the subscription.
 
+## Module Catalogue
+
+| Module | Azure Resources | State Key |
+|---|---|---|
+| `azure-minimal` | Resource Group, Storage Account, Blob Container | `azure-minimal/<env>.tfstate` |
+| `afd` | Resource Group, Front Door Profile, Endpoint, Origin Group, Origin | `afd/<env>.tfstate` |
+| `apim` | Resource Group, API Management (System-Assigned Identity) | `apim/<env>.tfstate` |
+| `func-app` | Resource Group, Storage Account, App Service Plan, Linux Function App | `func-app/<env>.tfstate` |
+| `vnet` | Resource Group, Virtual Network, Subnets (`for_each`) | `vnet/<env>.tfstate` |
+
+### Per-Environment SKU Defaults
+
+| Module | dev | staging | prod |
+|---|---|---|---|
+| `afd` | `Standard_AzureFrontDoor` | `Standard_AzureFrontDoor` | `Premium_AzureFrontDoor` |
+| `apim` | `Developer_1` | `Basic_1` | `Standard_1` |
+| `func-app` | `Y1` (Consumption) | `EP1` (Elastic Premium) | `EP2` (Elastic Premium) |
+| `vnet` | `10.0.0.0/16` | `10.1.0.0/16` | `10.2.0.0/16` |
+
+---
+
+## Standard Module Layout
+
+Every module under `infrastructure/` follows this identical layout:
+
+```
+<module>/
+├── main.tf          # Resource definitions
+├── locals.tf        # name_prefix = "${prefix}-${env}", common_tags map
+├── variables.tf     # Input variables (location, env, prefix + module-specific)
+├── outputs.tf       # Key resource IDs, names, endpoints
+├── providers.tf     # azurerm provider with use_oidc + skip_provider_registration
+├── versions.tf      # azurerm ~> 3.110, terraform >= 1.6.0, empty backend block
+└── env/
+    ├── dev/
+    │   ├── backend.hcl       # key = "<module>/dev.tfstate"
+    │   └── terraform.tfvars  # env = "dev", dev-tier SKUs
+    ├── staging/
+    │   ├── backend.hcl       # key = "<module>/staging.tfstate"
+    │   └── terraform.tfvars  # env = "staging", mid-tier SKUs
+    └── prod/
+        ├── backend.hcl       # key = "<module>/prod.tfstate"
+        └── terraform.tfvars  # env = "prod", prod-grade SKUs
+```
+
+### `locals.tf` pattern (same in every module)
+
+```hcl
+locals {
+  name_prefix = "${var.prefix}-${var.env}"   # e.g. sk-dev
+
+  common_tags = {
+    env        = var.env
+    module     = "<module-name>"
+    managed_by = "terraform"
+    repo       = "github-iac-terraform"
+  }
+}
+```
+
+Use `local.name_prefix` for all resource names and `merge(local.common_tags, { ... })` for tags.
+
+---
+
+## Adding a New Module
+
+1. **Create the folder** `infrastructure/<new-module>/`
+2. **Copy** `providers.tf` and `versions.tf` from any existing module — they are identical.
+3. **Write** `variables.tf`, `locals.tf`, `main.tf`, `outputs.tf` following the standard layout above.
+4. **Create** `env/dev/`, `env/staging/`, `env/prod/` with `backend.hcl` and `terraform.tfvars`:  
+   - Set `key = "<new-module>/<env>.tfstate"` in each `backend.hcl`  
+   - Set `env = "<env>"` and env-appropriate variable values in each `terraform.tfvars`
+5. **Add the module name** to both workflow `options:` lists in `.github/workflows/`.
+6. Push → run the `azure-minimal-apply` workflow selecting the new module + `dev` environment.
+
 ---
 
 ## CI/CD Workflows
+
+Both workflows accept three inputs at runtime:
+
+| Input | Required | Options | Description |
+|---|---|---|---|
+| `module` | Yes | `azure-minimal`, `afd`, `apim`, `func-app`, `vnet` | Which infrastructure module to operate on |
+| `environment` | Yes | `dev`, `staging`, `prod` | Target environment — selects `env/<env>/` files |
+| `target_resource` | No | Any Terraform resource address | Appended as `-target=<value>`. Leave empty for full apply/destroy |
 
 ### `azure-minimal-apply` — Deploy
 
