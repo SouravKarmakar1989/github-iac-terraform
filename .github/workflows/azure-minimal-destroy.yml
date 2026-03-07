@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   destroy:
-    runs-on: [self-hosted, ephemeral]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 

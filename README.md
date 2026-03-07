@@ -172,7 +172,7 @@ Runner: `ubuntu-latest` (GitHub-hosted)
 ### `azure-minimal-destroy` — Teardown
 
 Trigger: `workflow_dispatch` (manual)  
-Runner: `self-hosted, ephemeral`
+Runner: `ubuntu-latest` (GitHub-hosted)
 
 Same init step, then `terraform destroy -auto-approve`.
 
