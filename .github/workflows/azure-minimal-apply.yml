@@ -2,6 +2,20 @@ name: azure-minimal-apply
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment (e.g. dev, staging, prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      target_resource:
+        description: 'Terraform resource to target (e.g. azurerm_storage_account.sa). Leave empty to apply all.'
+        required: false
+        default: ''
 
 permissions:
   id-token: write
@@ -10,6 +24,8 @@ permissions:
 jobs:
   apply:
     runs-on: ubuntu-latest
+    env:
+      TF_TARGET: ${{ inputs.target_resource != '' && format('-target={0}', inputs.target_resource) || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -24,12 +40,12 @@ jobs:
 
       - name: Terraform Init
         working-directory: infrastructure/azure-minimal
-        run: terraform init -backend-config=env/dev/backend.hcl
+        run: terraform init -backend-config=env/${{ inputs.environment }}/backend.hcl
 
       - name: Terraform Plan
         working-directory: infrastructure/azure-minimal
-        run: terraform plan -var-file=env/dev/terraform.tfvars
+        run: terraform plan -var-file=env/${{ inputs.environment }}/terraform.tfvars ${{ env.TF_TARGET }}
 
       - name: Terraform Apply
         working-directory: infrastructure/azure-minimal
-        run: terraform apply -auto-approve -var-file=env/dev/terraform.tfvars
+        run: terraform apply -auto-approve -var-file=env/${{ inputs.environment }}/terraform.tfvars ${{ env.TF_TARGET }}
