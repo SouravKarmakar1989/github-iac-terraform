@@ -56,22 +56,6 @@ resource "azurerm_cognitive_deployment" "embedding" {
   }
 }
 
-# ── AI Search — agent memory / vector store ───────────────────────────────────
-# Stores conversation history and grounding documents as vectors
-
-resource "azurerm_search_service" "search" {
-  name                = "${local.name_prefix}-srch-agent"
-  location            = azurerm_resource_group.agent.location
-  resource_group_name = azurerm_resource_group.agent.name
-  sku                 = var.search_sku
-
-  identity {
-    type = "SystemAssigned"
-  }
-
-  tags = local.common_tags
-}
-
 # ── Storage — agent state and tool outputs ─────────────────────────────────────
 
 resource "azurerm_storage_account" "agent" {
@@ -141,10 +125,6 @@ resource "azurerm_container_app" "agent" {
       env {
         name  = "AZURE_OPENAI_DEPLOYMENT"
         value = azurerm_cognitive_deployment.agent_model.name
-      }
-      env {
-        name  = "AZURE_SEARCH_ENDPOINT"
-        value = "https://${azurerm_search_service.search.name}.search.windows.net"
       }
     }
   }

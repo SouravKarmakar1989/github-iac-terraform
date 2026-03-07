@@ -40,12 +40,6 @@ variable "embedding_capacity" {
   default = 60
 }
 
-# ── AI Search (agent memory / vector store) ───────────────────────────────────
-variable "search_sku" {
-  type    = string
-  default = "basic"
-}
-
 # ── Container Apps (agent runtime) ───────────────────────────────────────────
 variable "container_image" {
   type        = string

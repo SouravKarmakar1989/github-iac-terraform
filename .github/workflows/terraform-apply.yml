@@ -14,8 +14,9 @@ on:
           - func-app
           - vnet
           - ai-manage
-          - ai-genai
-          - ai-agent
+          - ai-foundry/ai-genai
+          - ai-foundry/ai-agent
+          - databricks
       environment:
         description: 'Target environment (e.g. dev, staging, prod)'
         required: true

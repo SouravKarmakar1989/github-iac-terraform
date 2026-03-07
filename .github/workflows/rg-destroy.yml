@@ -1,0 +1,44 @@
+name: rg-destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource_group_name:
+        description: 'Exact name of the Azure Resource Group to delete (all resources inside will be permanently destroyed)'
+        required: true
+        type: string
+      confirm:
+        description: 'Type DELETE to confirm you want to destroy the entire resource group'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  rg-destroy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "DELETE" ]; then
+            echo "::error::Confirmation failed. You must type DELETE to proceed."
+            exit 1
+          fi
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Delete Resource Group
+        run: |
+          echo "Deleting resource group: ${{ inputs.resource_group_name }}"
+          az group delete \
+            --name "${{ inputs.resource_group_name }}" \
+            --yes \
+            --no-wait
+          echo "Deletion initiated. The resource group and all contained resources are being removed."
