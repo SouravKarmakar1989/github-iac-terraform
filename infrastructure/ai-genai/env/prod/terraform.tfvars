@@ -1,0 +1,11 @@
+location                = "eastus"
+env                     = "prod"
+prefix                  = "sk"
+openai_sku              = "S0"
+gpt_model               = "gpt-4o"
+gpt_model_version       = "2024-08-06"
+gpt_capacity            = 80
+embedding_model         = "text-embedding-ada-002"
+embedding_model_version = "2"
+embedding_capacity      = 240
+search_sku              = "standard"

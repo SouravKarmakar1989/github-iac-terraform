@@ -13,6 +13,9 @@ on:
           - apim
           - func-app
           - vnet
+          - ai-manage
+          - ai-genai
+          - ai-agent
       environment:
         description: 'Target environment (e.g. dev, staging, prod)'
         required: true

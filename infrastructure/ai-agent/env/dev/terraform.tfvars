@@ -1,0 +1,16 @@
+location                = "eastus"
+env                     = "dev"
+prefix                  = "sk"
+openai_sku              = "S0"
+agent_model             = "gpt-4o"
+agent_model_version     = "2024-08-06"
+agent_model_capacity    = 20
+embedding_model         = "text-embedding-ada-002"
+embedding_model_version = "2"
+embedding_capacity      = 60
+search_sku              = "basic"
+container_image         = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+container_cpu           = 0.5
+container_memory        = "1Gi"
+min_replicas            = 0
+max_replicas            = 3
