@@ -62,8 +62,8 @@
 .
 ├── .github/
 │   └── workflows/
-│       ├── azure-minimal-apply.yml     # Terraform init → plan → apply  (all modules)
-│       └── azure-minimal-destroy.yml  # Terraform init → destroy        (all modules)
+│       ├── terraform-apply.yml     # Terraform init → plan → apply  (all modules)
+│       └── terraform-destroy.yml  # Terraform init → destroy        (all modules)
 ├── infrastructure/
 │   ├── azure-minimal/                  # Smoke-test: RG + Storage Account + Container
 │   │   ├── main.tf
@@ -235,7 +235,7 @@ Use `local.name_prefix` for all resource names and `merge(local.common_tags, { .
    - Set `key = "<new-module>/<env>.tfstate"` in each `backend.hcl`  
    - Set `env = "<env>"` and env-appropriate variable values in each `terraform.tfvars`
 5. **Add the module name** to both workflow `options:` lists in `.github/workflows/`.
-6. Push → run the `azure-minimal-apply` workflow selecting the new module + `dev` environment.
+6. Push → run the `terraform-apply` workflow selecting the new module + `dev` environment.
 
 ---
 
@@ -249,7 +249,7 @@ Both workflows accept three inputs at runtime:
 | `environment` | Yes | `dev`, `staging`, `prod` | Target environment — selects `env/<env>/` files |
 | `target_resource` | No | Any Terraform resource address | Appended as `-target=<value>`. Leave empty for full apply/destroy |
 
-### `azure-minimal-apply` — Deploy
+### `terraform-apply` — Deploy
 
 Trigger: `workflow_dispatch` (manual)  
 Runner: `ubuntu-latest` (GitHub-hosted)
@@ -263,7 +263,7 @@ Runner: `ubuntu-latest` (GitHub-hosted)
 | `terraform plan` | Plans changes using `env/dev/terraform.tfvars` |
 | `terraform apply` | Applies with `-auto-approve` |
 
-### `azure-minimal-destroy` — Teardown
+### `terraform-destroy` — Teardown
 
 Trigger: `workflow_dispatch` (manual)  
 Runner: `ubuntu-latest` (GitHub-hosted)
@@ -322,11 +322,11 @@ Navigate to **Settings → Secrets and variables → Actions → Variables tab**
 ## Running
 
 ### Apply (deploy)
-1. GitHub → **Actions** → `azure-minimal-apply` → **Run workflow**
+1. GitHub → **Actions** → `terraform-apply` → **Run workflow**
 2. Verify resources in Azure Portal under `rg-lab-dev`
 
 ### Destroy (teardown)
-1. GitHub → **Actions** → `azure-minimal-destroy` → **Run workflow**
+1. GitHub → **Actions** → `terraform-destroy` → **Run workflow**
 
 ---
 

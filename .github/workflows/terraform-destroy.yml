@@ -1,4 +1,4 @@
-name: azure-minimal-destroy
+name: terraform-destroy
 
 on:
   workflow_dispatch:
