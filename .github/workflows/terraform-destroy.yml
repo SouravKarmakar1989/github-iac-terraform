@@ -17,6 +17,10 @@ on:
           - ai-foundry/ai-genai
           - ai-foundry/ai-agent
           - databricks
+          - data-factory
+          - integration
+          - data-analytics
+          - compute
       environment:
         description: 'Target environment (e.g. dev, staging, prod)'
         required: true
