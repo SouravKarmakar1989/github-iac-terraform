@@ -5,11 +5,6 @@ resource "random_string" "suffix" {
   special = false
 }
 
-import {
-  to = azurerm_resource_group.lab
-  id = "/subscriptions/d43789e3-9b65-4b52-8737-c279a4e40a69/resourceGroups/rg-lab-dev"
-}
-
 resource "azurerm_resource_group" "lab" {
   name     = var.lab_rg_name
   location = var.location
