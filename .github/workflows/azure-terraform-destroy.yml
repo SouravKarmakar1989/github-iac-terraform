@@ -1,4 +1,4 @@
-name: terraform-destroy
+name: azure-terraform-destroy
 
 on:
   workflow_dispatch:

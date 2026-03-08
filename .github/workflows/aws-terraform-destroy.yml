@@ -1,0 +1,52 @@
+name: aws-terraform-destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: 'Infrastructure module to destroy'
+        required: true
+        type: choice
+        options:
+          - placeholder
+      environment:
+        description: 'Target environment (e.g. dev, staging, prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      target_resource:
+        description: 'Terraform resource to target. Leave empty to destroy all.'
+        required: false
+        default: ''
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    env:
+      TF_TARGET: ${{ inputs.target_resource != '' && format('-target={0}', inputs.target_resource) || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: AWS Configure (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: infrastructure-aws/${{ inputs.module }}
+        run: terraform init -backend-config=env/${{ inputs.environment }}/backend.hcl
+
+      - name: Terraform Destroy
+        working-directory: infrastructure-aws/${{ inputs.module }}
+        run: terraform destroy -auto-approve -var-file=env/${{ inputs.environment }}/terraform.tfvars ${{ env.TF_TARGET }}
