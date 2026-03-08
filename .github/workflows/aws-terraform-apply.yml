@@ -8,7 +8,7 @@ on:
         required: true
         type: choice
         options:
-          - placeholder
+          - aws-minimal
       environment:
         description: 'Target environment (e.g. dev, staging, prod)'
         required: true
