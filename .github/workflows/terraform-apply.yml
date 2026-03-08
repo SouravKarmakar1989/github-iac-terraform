@@ -21,6 +21,14 @@ on:
           - integration
           - data-analytics
           - compute
+          - storage/blob
+          - storage/adls
+          - storage/files
+          - database/cosmos
+          - database/sql
+          - database/postgres
+          - database/mysql
+          - database/redis
       environment:
         description: 'Target environment (e.g. dev, staging, prod)'
         required: true
