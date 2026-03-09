@@ -1,0 +1,10 @@
+output "resource_group_name"          { value = azurerm_resource_group.genai_agentic.name }
+output "openai_endpoint"              { value = azurerm_cognitive_account.openai.endpoint }
+output "openai_principal_id"          { value = azurerm_cognitive_account.openai.identity[0].principal_id }
+output "gpt_deployment_name"          { value = azurerm_cognitive_deployment.gpt.name }
+output "embedding_deployment_name"    { value = azurerm_cognitive_deployment.embedding.name }
+output "container_app_fqdn"           { value = azurerm_container_app.agent.ingress[0].fqdn }
+output "container_app_principal_id"   { value = azurerm_container_app.agent.identity[0].principal_id }
+output "agent_state_container_url"    { value = "${azurerm_storage_account.genai.primary_blob_endpoint}${azurerm_storage_container.agent_state.name}" }
+output "documents_container_url"      { value = "${azurerm_storage_account.genai.primary_blob_endpoint}${azurerm_storage_container.documents.name}" }
+output "storage_account_name"         { value = azurerm_storage_account.genai.name }
