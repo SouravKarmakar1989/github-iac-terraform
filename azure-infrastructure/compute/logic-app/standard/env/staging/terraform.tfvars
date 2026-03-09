@@ -1,0 +1,5 @@
+prefix                   = "sk"
+location                 = "eastus"
+env                      = "staging"
+sku_name                 = "WS1"
+storage_replication_type = "LRS"

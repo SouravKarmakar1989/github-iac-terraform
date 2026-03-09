@@ -1,0 +1,5 @@
+prefix                   = "sk"
+location                 = "eastus"
+env                      = "prod"
+runtime_version          = "20"
+storage_replication_type = "ZRS"

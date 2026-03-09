@@ -1,0 +1,5 @@
+prefix                   = "sk"
+location                 = "eastus"
+env                      = "prod"
+sku_name                 = "WS2"
+storage_replication_type = "ZRS"

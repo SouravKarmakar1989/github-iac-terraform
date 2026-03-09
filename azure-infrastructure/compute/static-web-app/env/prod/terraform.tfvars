@@ -1,0 +1,5 @@
+prefix   = "sk"
+location = "eastus"
+env      = "prod"
+sku_tier = "Standard"
+sku_size = "Standard"

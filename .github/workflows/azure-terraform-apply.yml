@@ -11,8 +11,6 @@ on:
           - azure-minimal
           - afd
           - apim
-          - func-app
-          - vnet
           - ai-manage
           - ai-foundry/ai-genai
           - ai-foundry/ai-agent
@@ -20,7 +18,23 @@ on:
           - data-factory
           - integration
           - data-analytics
-          - compute
+          - network/core
+          - network/firewall
+          - network/dns
+          - compute/iaas/vm
+          - compute/iaas/vmss
+          - compute/iaas/batch
+          - compute/paas/app-service
+          - compute/container/acr
+          - compute/container/aca
+          - compute/container/aci
+          - compute/container/aks
+          - compute/container/spring-apps
+          - compute/serverless/func-app
+          - compute/serverless/durable-func
+          - compute/logic-app/consumption
+          - compute/logic-app/standard
+          - compute/static-web-app
           - storage/blob
           - storage/adls
           - storage/files
