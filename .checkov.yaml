@@ -1,0 +1,46 @@
+# .checkov.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# Checkov configuration — used by both CI (ci.yml) and pre-commit hooks.
+# Docs: https://www.checkov.io/2.Basics/CLI%20Command%20Reference.html
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Frameworks to scan
+framework:
+  - terraform
+
+# Output format
+output:
+  - cli
+
+# Minimum severity to fail on (INFO / LOW / MEDIUM / HIGH / CRITICAL)
+# Set to HIGH for strict gate; MEDIUM catches more but may need tuning.
+check-threshold: HIGH
+
+# ── Skipped checks ────────────────────────────────────────────────────────────
+# Rules skipped with justification. Keep this list short and documented.
+# Use `checkov -d . --list` to see all check IDs.
+
+skip-check:
+  # Azure Storage: HTTPS-only is enforced via `min_tls_version = "TLS1_2"` in
+  # our modules. Checkov's CKV_AZURE_3 check is redundant.
+  - CKV_AZURE_3
+
+  # Key Vault: purge protection is conditionally disabled in dev/sandbox only.
+  # Our variables.tf defaults purge_protection_enabled = true (prod-safe).
+  - CKV_AZURE_110
+
+  # Container App: Checkov flags internal ingress as a warning; we use
+  # external_enabled = true intentionally in the genAI-agentic module.
+  - CKV_AZURE_226
+
+  # Terraform: backend type check — we use azurerm backend, not local.
+  # Checkov incorrectly flags this during -backend=false validate runs.
+  - CKV_TF_1
+
+# ── Directories to exclude ────────────────────────────────────────────────────
+exclude-path:
+  - .terraform
+  - .git
+
+# ── Compact output in CI ─────────────────────────────────────────────────────
+compact: true

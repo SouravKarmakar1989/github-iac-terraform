@@ -1,5 +1,20 @@
+# Terraform
 .terraform/
-.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 crash.log
+tfplan
+override.tf
+override.tf.json
+
+# Pre-commit / detect-secrets
+# .secrets.baseline is intentionally committed — do NOT add it here
+
+# Tool caches
+.tflint/
+.trivy/
+.semgrep/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,5 +1,11 @@
 name: azure-terraform-apply
 
+# ── How prod approval works ────────────────────────────────────────────────────
+# The 'apply' job sets  environment: ${{ inputs.environment }}
+# GitHub pauses that job and waits for a required reviewer when env = prod.
+# Setup: Settings → Environments → prod → Required reviewers → add yourself.
+# Dev/Staging environments have no protection rules → apply runs immediately.
+
 on:
   workflow_dispatch:
     inputs:
@@ -8,19 +14,31 @@ on:
         required: true
         type: choice
         options:
+          # ── Platform / Shared ────────────────────────────────────────────
+          - observability/log-analytics
+          - observability/app-insights
+          - security/key-vault
+          # ── AI Foundry ───────────────────────────────────────────────────
+          - ai-foundry/genAI-agentic
+          # ── AI Services ──────────────────────────────────────────────────
+          - ai-services/vision
+          - ai-services/speech-language
+          - ai-services/doc-intelligence
+          - ai-services/content-understanding
+          - ai-services/ai-search
+          # ── Core Azure ───────────────────────────────────────────────────
           - azure-minimal
           - afd
           - apim
-          - ai-manage
-          - ai-foundry/ai-genai
-          - ai-foundry/ai-agent
           - databricks
           - data-factory
           - integration
           - data-analytics
+          # ── Network ──────────────────────────────────────────────────────
           - network/core
           - network/firewall
           - network/dns
+          # ── Compute ──────────────────────────────────────────────────────
           - compute/iaas/vm
           - compute/iaas/vmss
           - compute/iaas/batch
@@ -35,16 +53,18 @@ on:
           - compute/logic-app/consumption
           - compute/logic-app/standard
           - compute/static-web-app
+          # ── Storage ──────────────────────────────────────────────────────
           - storage/blob
           - storage/adls
           - storage/files
+          # ── Database ─────────────────────────────────────────────────────
           - database/cosmos
           - database/sql
           - database/postgres
           - database/mysql
           - database/redis
       environment:
-        description: 'Target environment (e.g. dev, staging, prod)'
+        description: 'Target environment'
         required: true
         default: 'dev'
         type: choice
@@ -61,8 +81,11 @@ permissions:
   id-token: write
   contents: read
   actions: write
+
 jobs:
-  apply:
+  # ── Job 1: Plan — always runs, no approval needed ─────────────────────────
+  plan:
+    name: Terraform Plan
     runs-on: ubuntu-latest
     env:
       TF_TARGET: ${{ inputs.target_resource != '' && format('-target={0}', inputs.target_resource) || '' }}
@@ -84,7 +107,45 @@ jobs:
 
       - name: Terraform Plan
         working-directory: azure-infrastructure/${{ inputs.module }}
-        run: terraform plan -var-file=env/${{ inputs.environment }}/terraform.tfvars ${{ env.TF_TARGET }}
+        run: |
+          terraform plan \
+            -var-file=env/${{ inputs.environment }}/terraform.tfvars \
+            -out=tfplan \
+            -no-color \
+            ${{ env.TF_TARGET }}
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ inputs.module }}-${{ inputs.environment }}
+          path: azure-infrastructure/${{ inputs.module }}/tfplan
+          retention-days: 1
+
+  # ── Job 2: Apply — gated by GitHub Environment for prod ───────────────────
+  # For prod: pauses here and waits for required reviewer approval.
+  # For dev/staging: runs immediately after plan.
+  apply:
+    name: Terraform Apply
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}   # ← this is the prod approval gate
+    env:
+      TF_TARGET: ${{ inputs.target_resource != '' && format('-target={0}', inputs.target_resource) || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: azure-infrastructure/${{ inputs.module }}
+        run: terraform init -backend-config=env/${{ inputs.environment }}/backend.hcl
 
       - name: Terraform Apply
         working-directory: azure-infrastructure/${{ inputs.module }}

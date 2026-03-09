@@ -8,12 +8,22 @@ on:
         required: true
         type: choice
         options:
+          # ── Platform / Shared ──────────────────────────────────────────────
+          - observability/log-analytics
+          - observability/app-insights
+          - security/key-vault
+          # ── AI Foundry ────────────────────────────────────────────────────
+          - ai-foundry/genAI-agentic
+          # ── AI Services ───────────────────────────────────────────────────
+          - ai-services/vision
+          - ai-services/speech-language
+          - ai-services/doc-intelligence
+          - ai-services/content-understanding
+          - ai-services/ai-search
+          # ── Core Azure ────────────────────────────────────────────────────
           - azure-minimal
           - afd
           - apim
-          - ai-manage
-          - ai-foundry/ai-genai
-          - ai-foundry/ai-agent
           - databricks
           - data-factory
           - integration
@@ -64,6 +74,8 @@ permissions:
 jobs:
   destroy:
     runs-on: ubuntu-latest
+    # Destroy in prod requires reviewer approval — same gate as apply.
+    environment: ${{ inputs.environment }}
     env:
       TF_TARGET: ${{ inputs.target_resource != '' && format('-target={0}', inputs.target_resource) || '' }}
     steps:

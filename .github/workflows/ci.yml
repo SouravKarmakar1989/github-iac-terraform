@@ -1,0 +1,198 @@
+name: ci
+
+# ── Triggers ───────────────────────────────────────────────────────────────────
+# Runs on every PR targeting main, and on direct pushes to main.
+# This is the primary quality and security gate — must pass before merge.
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+permissions:
+  id-token: write       # OIDC token for Azure login
+  contents: read        # checkout
+  security-events: write # upload SARIF results to GitHub Security tab
+  pull-requests: write  # post inline comments on PR
+
+# Cancel in-progress runs on the same PR/branch to save minutes
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ── Job 1: Secret Scanning ────────────────────────────────────────────────
+  # Gitleaks scans the entire git history for leaked credentials.
+  # Never rely on "I didn't push it" — history scanning catches old commits too.
+  secret-scan:
+    name: Secret Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history needed for Gitleaks
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Job 2: Terraform Format & Validate ───────────────────────────────────
+  # Fast feedback: are all .tf files properly formatted and syntactically valid?
+  tf-lint:
+    name: Terraform Lint & Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Check terraform fmt (all modules)
+        run: |
+          FAILED=0
+          while IFS= read -r tf_dir; do
+            echo "→ Checking fmt: $tf_dir"
+            if ! terraform -chdir="$tf_dir" fmt -check -recursive; then
+              echo "::error::terraform fmt failed in $tf_dir — run 'terraform fmt -recursive' to fix"
+              FAILED=1
+            fi
+          done < <(find . -name "*.tf" -not -path "*/.terraform/*" -exec dirname {} \; | sort -u)
+          exit $FAILED
+
+      - name: Terraform validate (all modules)
+        run: |
+          FAILED=0
+          # Find every directory that has a versions.tf (= a root module)
+          while IFS= read -r mod_dir; do
+            echo "→ Validating: $mod_dir"
+            terraform -chdir="$mod_dir" init -backend=false -input=false -no-color > /dev/null 2>&1
+            if ! terraform -chdir="$mod_dir" validate -no-color; then
+              echo "::error::terraform validate failed in $mod_dir"
+              FAILED=1
+            fi
+          done < <(find . -name "versions.tf" -not -path "*/.terraform/*" -exec dirname {} \; | sort -u)
+          exit $FAILED
+
+      - name: tflint (Azure)
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - run: |
+          tflint --init
+          find azure-infrastructure -name "versions.tf" -not -path "*/.terraform/*" \
+            -exec dirname {} \; | sort -u | while read dir; do
+              echo "→ tflint: $dir"
+              tflint --chdir="$dir" --no-color || true
+            done
+
+  # ── Job 3: IaC Security Scan (Checkov) ───────────────────────────────────
+  # Checkov checks Terraform for misconfigurations:
+  # public storage, missing encryption, no soft-delete, missing tags, etc.
+  iac-scan:
+    name: IaC Scan (Checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov — Azure Infrastructure
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: azure-infrastructure
+          framework: terraform
+          config_file: .checkov.yaml
+          output_format: cli,sarif
+          output_file_path: console,results-azure.sarif
+          soft_fail: false
+
+      - name: Run Checkov — AWS Infrastructure
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: aws-infrastructure
+          framework: terraform
+          config_file: .checkov.yaml
+          output_format: cli,sarif
+          output_file_path: console,results-aws.sarif
+          soft_fail: false
+
+      - name: Upload SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results-azure.sarif
+
+  # ── Job 4: SAST — Semgrep ────────────────────────────────────────────────
+  # Semgrep scans for secrets, misconfigurations, and bad patterns in
+  # any language present in the repo. Free tier covers all standard rules.
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: >
+          semgrep ci
+          --config auto
+          --sarif
+          --output semgrep.sarif
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}  # optional: link to semgrep.dev dashboard
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
+  # ── Job 5: Dependency / SCA Scan ─────────────────────────────────────────
+  # Scans provider version constraints for known CVEs.
+  # Dependabot handles this automatically if enabled — this is an extra gate.
+  sca:
+    name: SCA — Dependency Scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy repo scan (misconfig + secrets)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy.sarif
+
+  # ── Summary Gate ─────────────────────────────────────────────────────────
+  # This job is the single required status check in branch protection rules.
+  # Add ONLY this job to "Required status checks" in GitHub Settings.
+  # It passes only when all scan jobs pass.
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    needs: [secret-scan, tf-lint, iac-scan, sast, sca]
+    if: always()
+    steps:
+      - name: Evaluate all jobs
+        run: |
+          results='${{ toJSON(needs) }}'
+          echo "$results" | python3 -c "
+          import sys, json
+          needs = json.load(sys.stdin)
+          failed = [k for k, v in needs.items() if v['result'] not in ('success', 'skipped')]
+          if failed:
+              print('FAILED jobs:', failed)
+              sys.exit(1)
+          print('All CI checks passed.')
+          "

@@ -1,0 +1,67 @@
+# .pre-commit-config.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# One-time setup (run once per developer workstation):
+#   pip install pre-commit
+#   pre-commit install
+#
+# To run manually against all files:
+#   pre-commit run --all-files
+#
+# These hooks run BEFORE every git commit — catching issues at zero cost,
+# before they ever reach the CI pipeline or Azure.
+# ─────────────────────────────────────────────────────────────────────────────
+
+repos:
+
+  # ── 1. General hygiene ────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: detect-private-key          # catches raw RSA/EC private keys
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+
+  # ── 2. Secret detection ───────────────────────────────────────────────────
+  # Detects high-entropy strings, API keys, tokens, passwords.
+  # Run `detect-secrets scan > .secrets.baseline` to create the baseline file,
+  # then commit .secrets.baseline to allow known false-positives.
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: '.*(\.tfstate|\.tfstate\.backup|\.terraform\.lock\.hcl)$'
+
+  # ── 3. Gitleaks (git history secret scan) ────────────────────────────────
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+        args: ['--config=.gitleaks.toml']
+
+  # ── 4. Terraform hooks ────────────────────────────────────────────────────
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.92.0
+    hooks:
+      - id: terraform_fmt              # formats all .tf files in-place
+      - id: terraform_validate         # validates each root module
+        args:
+          - --init-args=-backend=false
+      - id: terraform_tflint           # lints for deprecated syntax, wrong types
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+      - id: terraform_checkov          # IaC security scan on changed modules
+        args:
+          - --args=--config-file=__GIT_WORKING_DIR__/.checkov.yaml
+          - --args=--soft-fail         # warn only in pre-commit; CI enforces hard fail
+
+  # ── 5. GitHub Actions workflow lint ──────────────────────────────────────
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.1
+    hooks:
+      - id: actionlint                 # validates .github/workflows/*.yml syntax

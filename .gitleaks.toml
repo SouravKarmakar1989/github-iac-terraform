@@ -1,0 +1,15 @@
+# .gitleaks.toml
+# Gitleaks configuration — path-based exclusions.
+# This is preferred over .gitleaksignore (line-number fingerprints) because
+# path exclusions don't break when file content changes.
+# Docs: https://github.com/gitleaks/gitleaks#configuration
+
+[extend]
+# Use the default ruleset and extend with our allowlist below.
+useDefault = true
+
+[allowlist]
+# Exclude the secrets baseline from scanning — it contains only SHA256 hashes
+# of detected secrets (not real credentials). The hashes are safe to commit.
+description   = "Exclude detect-secrets baseline (contains hashed secrets, not real ones)"
+paths         = ['''.secrets.baseline''']

@@ -1,0 +1,18 @@
+# .semgrepignore
+# Files and paths excluded from Semgrep SAST scanning.
+# Semgrep respects .semgrepignore the same way git respects .gitignore.
+
+# Terraform provider cache
+.terraform/
+**/.terraform/
+
+# Terraform state files — contain sensitive data, not source code
+*.tfstate
+*.tfstate.backup
+
+# Lock files — dependency manifests, not application logic
+*.lock.hcl
+*.lock
+
+# Git internals
+.git/
